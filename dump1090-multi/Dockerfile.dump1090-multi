@@ -1,0 +1,38 @@
+FROM hostname.lan.home:65432/ubuntu:jammy
+LABEL maintainer littlewing
+ARG REPOSITORY="gtjoseph"
+ARG PROJECT="dump1090"
+ARG BRANCH="airspy-hirate"
+
+
+RUN apt update && \
+ apt --assume-yes upgrade && \
+ apt --assume-yes --no-install-recommends install \
+  ca-certificates \
+  git-core \
+  build-essential \
+  pkg-config \
+  libncurses5-dev \
+  liblimesuite-dev \
+  librtlsdr-dev \
+  libairspy-dev
+
+RUN git clone --depth 1 --branch ${BRANCH} "https://github.com/${REPOSITORY}/${PROJECT}.git"
+
+WORKDIR /${PROJECT}
+RUN make AIRSPY=yes RTLSDR=yes LIMESDR=yes
+RUN cp ./dump1090 /usr/local/bin
+WORKDIR /
+RUN rm -rf /${PROJECT}
+
+RUN apt autoremove --assume-yes --purge \
+  git-core \
+  build-essential \
+  pkg-config
+RUN rm -rf /var/lib/apt/lists/*
+
+
+VOLUME ["/var/log", "/etc/localtime:ro"]
+EXPOSE 30002/tcp 30003/tcp 30005/tcp
+ENTRYPOINT ["dump1090"]
+CMD ["--help"]

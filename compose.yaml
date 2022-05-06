@@ -1,0 +1,154 @@
+services:
+  dump1090-multi:
+    env_file: 
+      - ./.env
+      - ./${APPNAME_1090}/${APPNAME_1090}.env
+    image: ${REGISTRY}/${MAINTAINER}/${APPNAME_1090}:${TAG}
+    build:
+      context:  ./${APPNAME_1090}/
+      dockerfile: Dockerfile.${APPNAME_1090}
+      args:
+        - REPOSITORY=gtjoseph
+        - PROJECT=dump1090
+        - BRANCH=airspy-hirate
+    container_name: ${APPNAME_1090}
+    hostname: ${APPNAME_1090}
+    restart: always
+    volumes:
+      - type: bind
+        source: /var/log
+        target: /var/log
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+    ports:
+      - target: ${RAWPORT_1090}
+        published: ${RAWPORT_1090}
+        protocol: tcp
+      - target: ${SBSPORT_1090}
+        published: ${SBSPORT_1090}
+        protocol: tcp
+      - target: ${BEASTPORT_1090}
+        published: ${BEASTPORT_1090}
+        protocol: tcp
+    devices:
+      - /dev/bus/usb
+    tty: true
+    networks:
+      - adsb-containers
+    command: 
+      - "--device-type"
+      - "rtlsdr"
+      - "--device"
+      - "00000001"
+      - "--gain"
+      - "49.6"
+      - "--enable-agc"
+      - "--demod"
+      - "2400"
+      - "--fix"
+      - "--modeac"
+      - "--enable-df24"
+      - "--lat"
+      - "${LATITUDE}"
+      - "--lon"
+      - "${LONGITUDE}"
+      - "--max-range"
+      - "300"
+      - "--net"
+      - "--net-bind-address"
+      - "::"
+      - "--net-ri-port"
+      - "0"
+      - "--net-ro-port"
+      - "${RAWPORT_1090}"
+      - "--net-sbs-port"
+      - "${SBSPORT_1090}"
+      - "--net-bi-port"
+      - "0"
+      - "--net-bo-port"
+      - "${BEASTPORT_1090}"
+      - "--quiet"
+
+  fr24feed:
+    env_file: 
+      - ./.env
+      - ./${APPNAME_FR24}/${APPNAME_FR24}.env
+    image: ${REGISTRY}/${MAINTAINER}/${APPNAME_FR24}:${TAG}
+    build:
+      context:  ./${APPNAME_FR24}/
+      dockerfile: Dockerfile.${APPNAME_FR24}
+      args:
+        - KEY_ID=C969F07840C430F5
+    container_name: ${APPNAME_FR24}
+    hostname: ${APPNAME_FR24}
+    restart: always
+    configs:
+      - source: fr24feed_config
+        target: /etc/${CONFIG_FR24}
+    volumes:
+      - type: bind
+        source: /var/log
+        target: /var/log
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+    ports:
+      - target: 8754
+        published: ${EXPOSEPORT_FR24}
+        protocol: tcp
+    tty: true
+    networks:
+      - adsb-containers
+    depends_on: 
+      - dump1090
+
+  piaware:
+    env_file: 
+      - ./.env
+    image: ${REGISTRY}/${MAINTAINER_PIAWARE}/${APPNAME_PIAWARE}:${TAG_PIAWARE}
+    container_name: ${APPNAME_PIAWARE}
+    hostname: ${APPNAME_PIAWARE}
+    restart: always
+    environment:
+      - TZ=Asia/Tokyo
+      - LAT=${LATITUDE}
+      - LONG=${LONGITUDE}
+      - RECEIVER_TYPE=relay
+      - BEASTHOST=${APPNAME_1090}
+      - BEASTPORT=${BEASTPORT_1090}
+      - FEEDER_ID=${FEEDERID_PIAWARE}
+    volumes:
+      - type: bind
+        source: /var/log
+        target: /var/log
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+    tmpfs:
+      - /run:exec,size=64M
+    ports:
+      - host_ip: 0.0.0.0
+        target: 80
+        published: ${EXPOSEPORT_PIAWARE}
+        protocol: tcp
+    networks:
+      - adsb-containers
+    depends_on: 
+      - dump1090
+
+networks:
+  adsb-containers:
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: ${IPv4_SUBNET}
+        - subnet: ${IPv6_SUBNET}
+
+configs:
+  fr24feed_config:
+    file: ./${APPNAME_FR24}/config/${CONFIG_FR24}

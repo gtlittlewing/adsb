@@ -1,0 +1,39 @@
+FROM hostname.lan.home:65432/ubuntu:jammy
+LABEL maintainer littlewing
+ARG KEY_ID=C969F07840C430F5
+
+
+RUN apt update && \
+ apt upgrade --assume-yes && \
+ apt install --assume-yes --no-install-recommends \
+  gnupg \
+  ca-certificates
+
+RUN apt-key adv --recv-key --keyserver keyserver.ubuntu.com ${KEY_ID} || \
+apt-key adv --recv-key --keyserver pool.sks-keyservers.net ${KEY_ID} || \
+apt-key adv --recv-key --keyserver pgp.mit.edu ${KEY_ID}
+
+RUN printf "%s\n" \
+"deb http://repo.feed.flightradar24.com flightradar24 raspberrypi-stable" \
+ > /etc/apt/sources.list.d/fr24.list && \
+ dpkg --add-architecture armhf && \
+ apt update && \
+ apt install --assume-yes --no-install-recommends \
+  iputils-ping \
+  ntp \
+  libc6:armhf \
+  libstdc++6:armhf
+
+RUN apt download fr24feed && \
+ dpkg --unpack fr24feed*.deb && \
+ rm /var/lib/dpkg/info/fr24feed.preinst &&\
+ rm /var/lib/dpkg/info/fr24feed.postinst &&\
+ dpkg --configure fr24feed && \
+ apt --fix-broken --assume-yes install fr24feed && \
+ rm fr24feed*.deb
+
+COPY config/fr24feed.ini /etc
+
+VOLUME ["/var/log", "/etc/localtime:ro"]
+EXPOSE 39874:8754/tcp
+ENTRYPOINT ["fr24feed", "--config-file", "/etc/fr24feed.ini"]
