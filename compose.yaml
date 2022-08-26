@@ -8,9 +8,9 @@ services:
       context:  ./${APPNAME_1090}/
       dockerfile: Dockerfile.${APPNAME_1090}
       args:
-        - REPOSITORY=gtjoseph
+        - REPOSITORY=flightaware
         - PROJECT=dump1090
-        - BRANCH=airspy-hirate
+        - BRANCH=master
     container_name: ${APPNAME_1090}
     hostname: ${APPNAME_1090}
     restart: always
@@ -45,9 +45,7 @@ services:
       - "--gain"
       - "49.6"
       - "--enable-agc"
-      - "--demod"
-      - "2400"
-      - "--fix"
+      - "--fix-2bit"
       - "--modeac"
       - "--enable-df24"
       - "--lat"
